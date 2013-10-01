@@ -290,7 +290,7 @@ def searchNZB(albumid=None, new=False, losslessOnly=False):
 
                 # Add a user-agent
                 request = urllib2.Request(searchURL)
-                request.add_header('User-Agent', 'headphones/0.0 +https://github.com/rembo10/headphones')
+                request.add_header('User-Agent', 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)')
                 opener = urllib2.build_opener()
 
                 logger.info(u'Parsing results from <a href="%s">%s</a>' % (searchURL, newznab_host[0]))
@@ -690,7 +690,7 @@ def getresultNZB(result):
             logger.warn('Error fetching nzb from url: ' + result[2] + ' %s' % e)
     else:
         request = urllib2.Request(result[2])
-        request.add_header('User-Agent', 'headphones/0.0 +https://github.com/rembo10/headphones')
+        request.add_header('User-Agent', 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)')
         opener = urllib2.build_opener()
 
         try:
