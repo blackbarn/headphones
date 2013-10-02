@@ -196,7 +196,7 @@ def addArtisttoDB(artistid, extrasonly=False):
     group_list = []
     force_repackage = 0
     #Don't nuke the database if there's a MusicBrainz error
-    if len(artist['releasegroups']) != 0:
+    if len(artist['releasegroups']) != 0 and not extrasonly:
         for groups in artist['releasegroups']:
             group_list.append(groups['id'])
         remove_missing_groups_from_albums = myDB.action("SELECT ReleaseID FROM albums WHERE ArtistID=?", [artistid])
@@ -221,7 +221,8 @@ def addArtisttoDB(artistid, extrasonly=False):
         today = helpers.today()
         rgid = rg['id']
         skip_log = 0
-        #new_releases = 0
+        #Make a user configurable variable to skip update of albums with release dates older than this date (in days)
+        pause_delta = headphones.MB_IGNORE_AGE
 
         check_release_date = myDB.action("SELECT ReleaseDate from albums WHERE ArtistID=? AND AlbumTitle=?", (artistid, al_title)).fetchone()
         if check_release_date:
@@ -232,11 +233,11 @@ def addArtisttoDB(artistid, extrasonly=False):
                 logger.info("Now updating: " + rg['title'])
                 new_releases = mb.get_new_releases(rgid,includeExtras)         
             else:
-                if helpers.get_age(today) - helpers.get_age(check_release_date[0]) < 365:
+                if helpers.get_age(today) - helpers.get_age(check_release_date[0]) < pause_delta:
                     logger.info("Now updating: " + rg['title'])
                     new_releases = mb.get_new_releases(rgid,includeExtras)
                 else:
-                    logger.info('%s is over a year old; not updating' % al_title)
+                    logger.info('%s is over %s days old; not updating' % (al_title, pause_delta))
                     skip_log = 1
                     new_releases = 0
         else:
@@ -245,7 +246,7 @@ def addArtisttoDB(artistid, extrasonly=False):
 
         if force_repackage == 1:
             new_releases = -1
-            logger.info('Forcing repackage of %s, since dB references have been removed' % al_title)
+            logger.info('Forcing repackage of %s, since dB groups have been removed' % al_title)
         else:
             new_releases = new_releases
         
@@ -261,32 +262,35 @@ def addArtisttoDB(artistid, extrasonly=False):
             find_hybrid_releases = myDB.action("SELECT * from allalbums WHERE AlbumID=?", [rg['id']])
             # Build the dictionary for the fullreleaselist
             for items in find_hybrid_releases:
-                hybrid_release_id = items['ReleaseID']
-                newValueDict = {"ArtistID":         items['ArtistID'],
-                    "ArtistName":       items['ArtistName'],
-                    "AlbumTitle":       items['AlbumTitle'],
-                    "AlbumID":          items['AlbumID'],
-                    "AlbumASIN":        items['AlbumASIN'],
-                    "ReleaseDate":      items['ReleaseDate'],
-                    "Type":             items['Type'],
-                    "ReleaseCountry":   items['ReleaseCountry'],
-                    "ReleaseFormat":    items['ReleaseFormat']
-                }
-                find_hybrid_tracks = myDB.action("SELECT * from alltracks WHERE ReleaseID=?", [hybrid_release_id])
-                totalTracks = 1
-                hybrid_track_array = []
-                for hybrid_tracks in find_hybrid_tracks:
-                    hybrid_track_array.append({
-                        'number':        hybrid_tracks['TrackNumber'],
-                        'title':         hybrid_tracks['TrackTitle'],
-                        'id':            hybrid_tracks['TrackID'],
-                        #'url':           hybrid_tracks['TrackURL'],
-                        'duration':      hybrid_tracks['TrackDuration']
-                        })
-                    totalTracks += 1  
-                newValueDict['ReleaseID'] = hybrid_release_id
-                newValueDict['Tracks'] = hybrid_track_array
-                fullreleaselist.append(newValueDict)
+                if items['ReleaseID'] != rg['id']: #don't include hybrid information, since that's what we're replacing
+                    hybrid_release_id = items['ReleaseID']
+                    newValueDict = {"ArtistID":         items['ArtistID'],
+                        "ArtistName":       items['ArtistName'],
+                        "AlbumTitle":       items['AlbumTitle'],
+                        "AlbumID":          items['AlbumID'],
+                        "AlbumASIN":        items['AlbumASIN'],
+                        "ReleaseDate":      items['ReleaseDate'],
+                        "Type":             items['Type'],
+                        "ReleaseCountry":   items['ReleaseCountry'],
+                        "ReleaseFormat":    items['ReleaseFormat']
+                    }
+                    find_hybrid_tracks = myDB.action("SELECT * from alltracks WHERE ReleaseID=?", [hybrid_release_id])
+                    totalTracks = 1
+                    hybrid_track_array = []
+                    for hybrid_tracks in find_hybrid_tracks:
+                        hybrid_track_array.append({
+                            'number':        hybrid_tracks['TrackNumber'],
+                            'title':         hybrid_tracks['TrackTitle'],
+                            'id':            hybrid_tracks['TrackID'],
+                            #'url':           hybrid_tracks['TrackURL'],
+                            'duration':      hybrid_tracks['TrackDuration']
+                            })
+                        totalTracks += 1  
+                    newValueDict['ReleaseID'] = hybrid_release_id
+                    newValueDict['Tracks'] = hybrid_track_array
+                    fullreleaselist.append(newValueDict)
+
+                #print fullreleaselist
 
             # Basically just do the same thing again for the hybrid release
             # This may end up being called with an empty fullreleaselist
@@ -489,6 +493,7 @@ def addArtisttoDB(artistid, extrasonly=False):
         logger.info("Finished updating artist: " + artist['artist_name'] + " but with errors, so not marking it as updated in the database")
     else:
         logger.info(u"Updating complete for: " + artist['artist_name'])
+
     
 def addReleaseById(rid):
     
