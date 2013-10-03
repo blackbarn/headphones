@@ -473,7 +473,7 @@ def initialize():
         LASTFM_USERNAME = check_setting_str(CFG, 'General', 'lastfm_username', '')
 
         INTERFACE = check_setting_str(CFG, 'General', 'interface', 'default')
-        FOLDER_PERMISSIONS = check_setting_str(CFG, 'General', 'folder_permissions', '0755')
+        FOLDER_PERMISSIONS = check_setting_str(CFG, 'General', 'folder_permissions', '0775')
 
         ENCODERFOLDER = check_setting_str(CFG, 'General', 'encoderfolder', '')
         ENCODER_PATH = check_setting_str(CFG, 'General', 'encoder_path', '')
